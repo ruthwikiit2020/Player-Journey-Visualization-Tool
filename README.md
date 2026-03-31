@@ -4,10 +4,9 @@
 This repository also includes a **web-based visualization tool** for Level Designers to explore player behavior on the maps.
 
 ### Live demo
-After GitHub Pages is enabled, the tool is available at:
-`https://ruthwikiit2020.github.io/Player-Journey-Visualization-Tool/`
+ the tool is available at: deployed in netlify
+`https://player-visualisation-tool.netlify.app/`
 
-Open `index.html` in a browser (or use the link above). The app loads the structured Feb 10–14 dataset from `structured_output/` and overlays it on the minimap images in `minimaps/`.
 
 ### Features
 - Load & parse structured parquet (with CSV fallback)
