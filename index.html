@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LILA BLACK — Player Journey Visualization</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #08090f;
+    --panel: #0d0f1a;
+    --panel2: #111320;
+    --border: #1e2235;
+    --border-bright: #2a3050;
+    --accent: #00e5ff;
+    --accent2: #ff3a6e;
+    --accent3: #ffe000;
+    --accent4: #7c4dff;
+    --text: #c8d0e8;
+    --text-dim: #5a6080;
+    --human: #00e5ff;
+    --bot: #ff9100;
+    --kill: #ff3a6e;
+    --loot: #ffe000;
+    --storm: #7c4dff;
+    --font-head: 'Orbitron', monospace;
+    --font-body: 'Rajdhani', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    line-height: 1.5;
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 52px 1fr;
+    grid-template-columns: 260px 1fr 240px;
+    grid-template-areas:
+      "header header header"
+      "left   main   right";
+  }
+
+  /* ── HEADER ─────────────────────────────────── */
+  header {
+    grid-area: header;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border-bright);
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    gap: 20px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .logo {
+    font-family: var(--font-head);
+    font-size: 18px;
+    font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .logo span { color: var(--accent2); }
+
+  .header-subtitle {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border-left: 1px solid var(--border-bright);
+    padding-left: 16px;
+    flex-shrink: 0;
+  }
+
+  .header-badges {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    letter-spacing: 1px;
+    font-weight: 500;
+    border: 1px solid;
+    text-transform: uppercase;
+  }
+  .badge.live { color: #00ff88; border-color: #00ff8840; background: #00ff8808; }
+  .badge.live::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #00ff88; animation: pulse 1.5s infinite; }
+  .badge.date { color: var(--text-dim); border-color: var(--border); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.85); }
+  }
+
+  /* ── LEFT PANEL ─────────────────────────────── */
+  .left-panel {
+    grid-area: left;
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-section {
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .panel-label {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  /* Map selector */
+  .map-tabs {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .map-tab {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: all 0.15s;
+    gap: 10px;
+    font-weight: 500;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
+  .map-tab:hover { background: var(--panel2); border-color: var(--border-bright); }
+  .map-tab.active { background: #00e5ff0f; border-color: var(--accent); color: var(--accent); }
+  .map-tab .map-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .map-tab .map-count { margin-left: auto; font-family: var(--font-mono); font-size: 10px; color: var(--text-dim); }
+  .map-tab.active .map-count { color: var(--accent); }
+
+  /* Filters */
+  .filter-group { margin-bottom: 10px; }
+  .filter-group label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 4px; font-weight: 600; letter-spacing: 0.5px; }
+
+  select, input[type="range"] {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 2px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  select:focus, select:hover { border-color: var(--accent); }
+  option { background: var(--panel2); }
+
+  input[type="range"] {
+    padding: 0;
+    height: 4px;
+    -webkit-appearance: none;
+    appearance: none;
+    background: var(--border-bright);
+    border: none;
+    cursor: pointer;
+    margin-top: 4px;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+  }
+
+  /* Toggle row */
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 0;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .toggle-row span { display: flex; align-items: center; gap: 6px; }
+
+  .toggle {
+    width: 34px; height: 18px;
+    background: var(--bg);
+    border: 1px solid var(--border-bright);
+    border-radius: 9px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle::after {
+    content: '';
+    position: absolute;
+    width: 12px; height: 12px;
+    background: white;
+    border-radius: 50%;
+    top: 2px; left: 2px;
+    transition: left 0.2s;
+  }
+  .toggle.on::after { left: 18px; }
+
+  .color-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    flex-shrink: 0;
+  }
+
+  /* Legend */
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 3px 0;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .legend-icon {
+    width: 20px; height: 20px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .stat-box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 8px 10px;
+    text-align: center;
+    transition: border-color 0.2s;
+  }
+  .stat-box:hover { border-color: var(--border-bright); }
+
+  .stat-value {
+    font-family: var(--font-head);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.1;
+  }
+  .stat-label {
+    font-size: 9px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 2px;
+  }
+
+  /* ── MAIN CANVAS AREA ───────────────────────── */
+  .main-area {
+    grid-area: main;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .map-container {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background:
+      radial-gradient(ellipse at 20% 30%, #00e5ff08 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 70%, #7c4dff08 0%, transparent 50%),
+      #08090f;
+  }
+
+  .map-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: 0.4;
+  }
+
+  #mapCanvas {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    border: 1px solid var(--border-bright);
+    box-shadow: 0 0 40px #00e5ff12, 0 0 80px #00000080;
+    cursor: crosshair;
+    width: min(96vmin, calc(100% - 32px));
+    height: auto;
+    image-rendering: auto;
+  }
+
+  .map-label-overlay {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    font-family: var(--font-head);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--accent);
+    text-transform: uppercase;
+    opacity: 0.7;
+    pointer-events: none;
+  }
+
+  .coord-display {
+    position: absolute;
+    bottom: 80px;
+    left: 16px;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    color: var(--text-dim);
+    pointer-events: none;
+    letter-spacing: 1px;
+  }
+
+  /* ── TIMELINE ───────────────────────────────── */
+  .timeline-bar {
+    height: 72px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .timeline-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .btn-icon {
+    width: 30px; height: 30px;
+    border-radius: 3px;
+    border: 1px solid var(--border-bright);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-icon:hover { background: var(--panel2); border-color: var(--accent); color: var(--accent); }
+  .btn-icon.active { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  .time-display {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--accent);
+    min-width: 70px;
+    letter-spacing: 1px;
+  }
+
+  .speed-btn {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    padding: 4px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text-dim);
+    cursor: pointer;
+    transition: all 0.15s;
+    letter-spacing: 1px;
+  }
+  .speed-btn.active { border-color: var(--accent); color: var(--accent); }
+  .speed-btn:hover { border-color: var(--border-bright); color: var(--text); }
+
+  .timeline-track {
+    position: relative;
+    height: 4px;
+    background: var(--border-bright);
+    border-radius: 2px;
+    cursor: pointer;
+    flex: 1;
+  }
+
+  .timeline-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+    pointer-events: none;
+  }
+
+  .timeline-thumb {
+    position: absolute;
+    width: 12px; height: 12px;
+    background: white;
+    border-radius: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+    left: 0%;
+    pointer-events: none;
+    box-shadow: 0 0 6px var(--accent);
+  }
+
+  .event-ticks {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+  }
+
+  .event-tick {
+    position: absolute;
+    width: 2px;
+    height: 8px;
+    top: -2px;
+    border-radius: 1px;
+    transform: translateX(-50%);
+  }
+
+  /* ── RIGHT PANEL ────────────────────────────── */
+  .right-panel {
+    grid-area: right;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .right-panel::-webkit-scrollbar { width: 4px; }
+  .right-panel::-webkit-scrollbar-track { background: var(--bg); }
+  .right-panel::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+
+  .heatmap-controls { display: flex; flex-direction: column; gap: 4px; }
+
+  .heatmap-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.15s;
+    letter-spacing: 0.5px;
+  }
+  .heatmap-btn:hover { border-color: var(--border-bright); }
+  .heatmap-btn.active { background: var(--panel2); }
+  .heatmap-btn .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .heatmap-btn .check { margin-left: auto; width: 14px; height: 14px; border-radius: 2px; border: 1px solid var(--border-bright); font-size: 9px; display: flex; align-items: center; justify-content: center; }
+  .heatmap-btn.active .check { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+
+  /* Match list */
+  .match-list { display: flex; flex-direction: column; gap: 4px; max-height: 200px; overflow-y: auto; }
+  .match-list::-webkit-scrollbar { width: 3px; }
+  .match-list::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  .match-item {
+    padding: 6px 10px;
+    border-radius: 2px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-size: 11px;
+  }
+  .match-item:hover { border-color: var(--border-bright); }
+  .match-item.selected { border-color: var(--accent); background: #00e5ff0a; }
+  .match-item .match-id { font-family: var(--font-mono); font-size: 9px; color: var(--text-dim); }
+  .match-item .match-meta { display: flex; gap: 8px; margin-top: 2px; }
+  .match-item .match-meta span { font-size: 10px; }
+
+  /* Tooltip */
+  #tooltip {
+    position: fixed;
+    background: var(--panel);
+    border: 1px solid var(--border-bright);
+    padding: 8px 12px;
+    border-radius: 3px;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 1000;
+    display: none;
+    box-shadow: 0 4px 20px #00000060;
+    max-width: 200px;
+    font-family: var(--font-mono);
+  }
+  #tooltip .tt-type { font-weight: 700; margin-bottom: 4px; font-size: 12px; }
+  #tooltip .tt-row { color: var(--text-dim); font-size: 10px; }
+
+  /* Scan lines overlay */
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 999;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+  }
+
+  /* Overflow scroll on left panel */
+  .left-panel { overflow-y: auto; }
+  .left-panel::-webkit-scrollbar { width: 4px; }
+  .left-panel::-webkit-scrollbar-thumb { background: var(--border-bright); }
+
+  .status-bar {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    pointer-events: none;
+  }
+
+  .status-chip {
+    font-family: var(--font-mono);
+    font-size: 9px;
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 2px;
+    border: 1px solid;
+    text-transform: uppercase;
+    background: #08090fe0;
+    backdrop-filter: blur(4px);
+  }
+
+  .glow-text { text-shadow: 0 0 12px currentColor; }
+
+  /* Notification toast */
+  #toast {
+    position: fixed;
+    bottom: 90px;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--panel);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 8px 16px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    letter-spacing: 1px;
+    opacity: 0;
+    transition: all 0.3s;
+    pointer-events: none;
+    z-index: 1000;
+    text-transform: uppercase;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<div class="scanlines"></div>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">LILA <span>BLACK</span></div>
+  <div class="header-subtitle">Player Journey Visualizer · Internal Tool v1.0</div>
+  <div class="header-badges">
+    <div class="badge date">📅 February 10 - 14</div>
+    <div class="badge live">PROTOTYPE</div>
+  </div>
+
+</header>
+
+<!-- LEFT PANEL -->
+<div class="left-panel">
+
+  <!-- Map Selector -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Map Selection</div>
+    <div class="map-tabs">
+      <div class="map-tab active" data-map="AmbroseValley" onclick="selectMap('AmbroseValley', this)">
+        <div class="map-dot" style="background:#00e5ff"></div>
+        Ambrose Valley
+        <span class="map-count">13 matches</span>
+      </div>
+      <div class="map-tab" data-map="GrandRift" onclick="selectMap('GrandRift', this)">
+        <div class="map-dot" style="background:#ff9100"></div>
+        Grand Rift
+        <span class="map-count">4 matches</span>
+      </div>
+      <div class="map-tab" data-map="Lockdown" onclick="selectMap('Lockdown', this)">
+        <div class="map-dot" style="background:#7c4dff"></div>
+        Lockdown
+        <span class="map-count">4 matches</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Filters</div>
+    <div class="filter-group">
+      <label>DATE</label>
+      <select id="filterDate" onchange="applyFilters()">
+        <option>February_14</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>MATCH ID</label>
+      <select id="filterMatch" onchange="applyFilters()">
+        <option value="all">— All Matches —</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>PLAYER TYPE</label>
+      <select id="filterPlayerType" onchange="applyFilters()">
+        <option value="all">Humans + Bots</option>
+        <option value="human">Humans Only</option>
+        <option value="bot">Bots Only</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Layer Toggles -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Event Layers</div>
+    <div class="toggle-row">
+      <span><div class="color-dot" style="background:var(--human)"></div> Human Paths</span>
+      <div class="toggle on" id="toggle-human" onclick="toggleLayer('human')"></div>
+    </div>
+    <div class="toggle-row">
+      <span><div class="color-dot" style="background:var(--bot)"></div> Bot Paths</span>
+      <div class="toggle on" id="toggle-bot" onclick="toggleLayer('bot')"></div>
+    </div>
+    <div class="toggle-row">
+      <span><div class="color-dot" style="background:var(--loot)"></div> Loot Events</span>
+      <div class="toggle on" id="toggle-loot" onclick="toggleLayer('loot')"></div>
+    </div>
+    <div class="toggle-row">
+      <span><div class="color-dot" style="background:var(--kill)"></div> Kill Events</span>
+      <div class="toggle on" id="toggle-kill" onclick="toggleLayer('kill')"></div>
+    </div>
+    <div class="toggle-row">
+      <span><div class="color-dot" style="background:var(--storm)"></div> Storm Deaths</span>
+      <div class="toggle on" id="toggle-storm" onclick="toggleLayer('storm')"></div>
+    </div>
+  </div>
+
+  <!-- Path opacity -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Display</div>
+    <div class="filter-group">
+      <label>PATH OPACITY — <span id="opacityVal">60%</span></label>
+      <input type="range" id="pathOpacity" min="10" max="100" value="60" oninput="updateOpacity(this.value)">
+    </div>
+    <div class="filter-group">
+      <label>PATH THICKNESS</label>
+      <input type="range" id="pathThickness" min="1" max="5" value="2" oninput="redraw()">
+    </div>
+  </div>
+
+  <!-- Legend -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Legend</div>
+    <div class="legend-item"><div class="legend-icon" style="color:var(--human)">───</div> Human Path</div>
+    <div class="legend-item"><div class="legend-icon" style="color:var(--bot)">╌╌╌</div> Bot Path</div>
+    <div class="legend-item"><div class="legend-icon">💀</div> Kill Event</div>
+    <div class="legend-item"><div class="legend-icon">📦</div> Loot Pickup</div>
+    <div class="legend-item"><div class="legend-icon">⚡</div> Storm Death</div>
+    <div class="legend-item"><div class="legend-icon">🎯</div> Human Start</div>
+  </div>
+
+  <!-- Live Stats -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Session Stats</div>
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div class="stat-value" id="statEvents" style="color:var(--accent)">2215</div>
+        <div class="stat-label">Total Events</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statMatches" style="color:var(--accent3)">21</div>
+        <div class="stat-label">Matches</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statPlayers" style="color:var(--human)">1244</div>
+        <div class="stat-label">Human Rows</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statBots" style="color:var(--bot)">971</div>
+        <div class="stat-label">Bot Rows</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statKills" style="color:var(--kill)">42</div>
+        <div class="stat-label">Bot Kills</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-value" id="statLoot" style="color:var(--loot)">271</div>
+        <div class="stat-label">Loot Events</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MAIN MAP AREA -->
+<div class="main-area">
+  <div class="map-container" id="mapContainer">
+    <div class="map-grid"></div>
+    <!-- Internal coordinate space matches minimap pixels (1024x1024) -->
+    <canvas id="mapCanvas" width="1024" height="1024"></canvas>
+
+    <div class="map-label-overlay" id="mapLabelOverlay">AMBROSE VALLEY · FEB 14</div>
+
+    <div class="status-bar">
+      <div class="status-chip" style="color:var(--accent); border-color:var(--accent)40">
+        ▸ 13 MATCHES LOADED
+      </div>
+      <div class="status-chip" style="color:var(--text-dim); border-color:var(--border)">
+        COORD: X[-321..302] Z[-369..334]
+      </div>
+      <div class="status-chip glow-text" style="color:#00ff88; border-color:#00ff8840" id="statusChip">
+        ● RENDERING
+      </div>
+    </div>
+
+    <div class="coord-display" id="coordDisplay">CURSOR: X — , Z —</div>
+  </div>
+
+  <!-- TIMELINE -->
+  <div class="timeline-bar">
+    <div class="timeline-controls">
+      <button class="btn-icon" onclick="skipStart()" title="Skip to start">⏮</button>
+      <button class="btn-icon" id="btnPlay" onclick="togglePlay()" title="Play/Pause">▶</button>
+      <button class="btn-icon" onclick="skipEnd()" title="Skip to end">⏭</button>
+      <div class="time-display" id="timeDisplay">T +0:00</div>
+
+      <div style="display:flex;gap:4px;margin-left:4px;">
+        <button class="speed-btn active" onclick="setSpeed(1, this)">1×</button>
+        <button class="speed-btn" onclick="setSpeed(2, this)">2×</button>
+        <button class="speed-btn" onclick="setSpeed(5, this)">5×</button>
+        <button class="speed-btn" onclick="setSpeed(0.5, this)">½×</button>
+      </div>
+
+      <div style="flex:1;margin-left:10px;" class="timeline-track" id="timelineTrack" onclick="seekTimeline(event)">
+        <div class="event-ticks" id="eventTicks"></div>
+        <div class="timeline-fill" id="timelineFill"></div>
+        <div class="timeline-thumb" id="timelineThumb"></div>
+      </div>
+
+      <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-dim);margin-left:4px;" id="timeTotal">/ 0:00</span>
+    </div>
+  </div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div class="right-panel">
+
+  <!-- Heatmaps -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Heatmap Overlays</div>
+    <div class="heatmap-controls">
+      <div class="heatmap-btn" id="hm-kills" onclick="toggleHeatmap('kills', this)">
+        <div class="dot" style="background:#ff3a6e"></div>
+        Kill Zones
+        <div class="check">✓</div>
+      </div>
+      <div class="heatmap-btn" id="hm-deaths" onclick="toggleHeatmap('deaths', this)">
+        <div class="dot" style="background:#ff9100"></div>
+        Death Zones
+        <div class="check"></div>
+      </div>
+      <div class="heatmap-btn" id="hm-traffic" onclick="toggleHeatmap('traffic', this)">
+        <div class="dot" style="background:#00e5ff"></div>
+        High Traffic
+        <div class="check"></div>
+      </div>
+      <div class="heatmap-btn" id="hm-loot" onclick="toggleHeatmap('loot', this)">
+        <div class="dot" style="background:#ffe000"></div>
+        Loot Density
+        <div class="check"></div>
+      </div>
+    </div>
+    <div class="filter-group" style="margin-top:10px;">
+      <label>INTENSITY — <span id="heatIntVal">70%</span></label>
+      <input type="range" id="heatIntensity" min="10" max="100" value="70" oninput="updateHeatIntensity(this.value)">
+    </div>
+  </div>
+
+  <!-- Match List -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Match Index</div>
+    <div class="match-list" id="matchList">
+      <!-- populated by JS -->
+    </div>
+  </div>
+
+  <!-- Insights panel -->
+  <div class="panel-section">
+    <div class="panel-label">▸ AI Insights</div>
+    <div id="insightPanel" style="font-size:11px; line-height:1.6; color:var(--text-dim);">
+      Select a map to see data insights.
+    </div>
+  </div>
+
+  <!-- Zone breakdown bar chart -->
+  <div class="panel-section">
+    <div class="panel-label">▸ Event Breakdown</div>
+    <div id="barChart" style="display:flex;flex-direction:column;gap:5px;">
+      <!-- populated -->
+    </div>
+  </div>
+
+</div>
+
+<div id="tooltip">
+  <div class="tt-type" id="tt-type"></div>
+  <div class="tt-row" id="tt-row1"></div>
+  <div class="tt-row" id="tt-row2"></div>
+</div>
+<div id="toast"></div>
+
+<script>
+const MAPS = {
+  AmbroseValley: {
+    label: "AMBROSE VALLEY",
+    color: "#00e5ff",
+    minimap: "./minimaps/AmbroseValley_Minimap.png",
+    scale: 900, originX: -370, originZ: -473
+  },
+  GrandRift: {
+    label: "GRAND RIFT",
+    color: "#ff9100",
+    minimap: "./minimaps/GrandRift_Minimap.png",
+    scale: 581, originX: -290, originZ: -290
+  },
+  Lockdown: {
+    label: "LOCKDOWN",
+    color: "#7c4dff",
+    minimap: "./minimaps/Lockdown_Minimap.jpg",
+    scale: 1000, originX: -500, originZ: -500
+  }
+};
+
+const DATA_SOURCES = {
+  parquet: "./structured_output/player_journey_feb10_14.parquet",
+  csv: "./structured_output/player_journey_feb10_14.csv"
+};
+
+let state = {
+  rawEvents: [],
+  currentMap: "AmbroseValley",
+  filteredEvents: [],
+  visibleEvents: [],
+  mapImage: null,
+  days: [],
+  timeMin: 0,
+  timeMax: 1,
+  playhead: 0,
+  playing: false,
+  playSpeed: 1,
+  lastTimestamp: null,
+  layers: { human: true, bot: true, loot: true, kill: true, storm: true },
+  heatmaps: { kills: true, deaths: false, traffic: false, loot: false },
+  opacity: 0.6,
+  heatIntensity: 0.7
+};
+
+const canvas = document.getElementById("mapCanvas");
+const ctx = canvas.getContext("2d");
+const MAP_PX = 1024;
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+function resizeCanvasToContainer() {
+  const container = document.getElementById("mapContainer");
+  if (!container) return;
+  const r = container.getBoundingClientRect();
+  // Leave a little room for overlays/borders; keep square.
+  const size = Math.floor(Math.max(320, Math.min(r.width, r.height) - 24));
+  canvas.style.width = `${size}px`;
+  canvas.style.height = `${size}px`;
+}
+
+function fmtSecs(sec) {
+  const m = Math.floor(sec / 60);
+  const s = String(Math.floor(sec % 60)).padStart(2, "0");
+  return `${m}:${s}`;
+}
+
+function eventColor(type) {
+  return ({
+    Position: "#00e5ff",
+    BotPosition: "#ff9100",
+    Kill: "#ff3a6e",
+    Killed: "#ff9100",
+    BotKill: "#ff3a6e",
+    BotKilled: "#ff9100",
+    Loot: "#ffe000",
+    KilledByStorm: "#7c4dff"
+  })[type] || "#c8d0e8";
+}
+
+function mapToPixel(event, mapCfg) {
+  const x = Number(event.x);
+  const z = Number(event.z);
+  const mmx = Number(event.minimap_x);
+  const mmy = Number(event.minimap_y);
+  if (Number.isFinite(mmx) && Number.isFinite(mmy)) {
+    return { px: clamp(mmx, 0, MAP_PX), py: clamp(mmy, 0, MAP_PX) };
+  }
+  const u = (x - mapCfg.originX) / mapCfg.scale;
+  const v = (z - mapCfg.originZ) / mapCfg.scale;
+  return { px: clamp(u * MAP_PX, 0, MAP_PX), py: clamp((1 - v) * MAP_PX, 0, MAP_PX) };
+}
+
+function canvasToWorld(px, py, mapCfg) {
+  const u = px / canvas.width;
+  const v = 1 - (py / canvas.height);
+  const x = mapCfg.originX + (u * mapCfg.scale);
+  const z = mapCfg.originZ + (v * mapCfg.scale);
+  return { x: x.toFixed(1), z: z.toFixed(1) };
+}
+
+function groupPathEvents(events) {
+  const paths = new Map();
+  for (const e of events) {
+    if (e.event !== "Position" && e.event !== "BotPosition") continue;
+    const k = `${e.match_id}__${e.user_id}`;
+    if (!paths.has(k)) paths.set(k, { isBot: !!e.is_bot, points: [] });
+    paths.get(k).points.push(e);
+  }
+  for (const p of paths.values()) {
+    p.points.sort((a, b) => a.timeline_s - b.timeline_s);
+  }
+  return paths;
+}
+
+function drawHeatmap(events, type, color, radius) {
+  const temp = document.createElement("canvas");
+  temp.width = canvas.width;
+  temp.height = canvas.height;
+  const tc = temp.getContext("2d");
+  for (const e of events) {
+    const isType = type.includes(e.event);
+    if (!isType) continue;
+    const { px, py } = mapToPixel(e, MAPS[state.currentMap]);
+    const g = tc.createRadialGradient(px, py, 0, px, py, radius);
+    g.addColorStop(0, `rgba(${color},${state.heatIntensity * 0.45})`);
+    g.addColorStop(1, `rgba(${color},0)`);
+    tc.fillStyle = g;
+    tc.beginPath();
+    tc.arc(px, py, radius, 0, Math.PI * 2);
+    tc.fill();
+  }
+  ctx.globalCompositeOperation = "screen";
+  ctx.drawImage(temp, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
+}
+
+function redraw() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#08090f";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  if (state.mapImage) ctx.drawImage(state.mapImage, 0, 0, canvas.width, canvas.height);
+
+  state.visibleEvents = state.filteredEvents.filter(e => e.timeline_s <= state.playhead + 0.001);
+  if (state.heatmaps.kills) drawHeatmap(state.visibleEvents, ["Kill", "BotKill"], "255,58,110", 18);
+  if (state.heatmaps.deaths) drawHeatmap(state.visibleEvents, ["Killed", "BotKilled", "KilledByStorm"], "255,145,0", 18);
+  if (state.heatmaps.traffic) drawHeatmap(state.visibleEvents, ["Position", "BotPosition"], "0,229,255", 22);
+  if (state.heatmaps.loot) drawHeatmap(state.visibleEvents, ["Loot"], "255,224,0", 18);
+
+  const paths = groupPathEvents(state.visibleEvents);
+  const thickness = parseInt(document.getElementById("pathThickness").value, 10);
+  for (const p of paths.values()) {
+    if (p.isBot && !state.layers.bot) continue;
+    if (!p.isBot && !state.layers.human) continue;
+    if (p.points.length < 2) continue;
+    ctx.beginPath();
+    const first = mapToPixel(p.points[0], MAPS[state.currentMap]);
+    ctx.moveTo(first.px, first.py);
+    for (let i = 1; i < p.points.length; i++) {
+      const n = mapToPixel(p.points[i], MAPS[state.currentMap]);
+      ctx.lineTo(n.px, n.py);
+    }
+    const a = Math.round(state.opacity * 255).toString(16).padStart(2, "0");
+    ctx.strokeStyle = (p.isBot ? "#ff9100" : "#00e5ff") + a;
+    ctx.lineWidth = p.isBot ? thickness * 0.8 : thickness;
+    ctx.setLineDash(p.isBot ? [4, 4] : []);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  for (const e of state.visibleEvents) {
+    const { px, py } = mapToPixel(e, MAPS[state.currentMap]);
+    if ((e.event === "Kill" || e.event === "BotKill") && state.layers.kill) {
+      ctx.font = "13px Arial";
+      ctx.fillText("💀", px - 6, py + 5);
+    }
+    if ((e.event === "Killed" || e.event === "BotKilled") && state.layers.kill) {
+      ctx.font = "13px Arial";
+      ctx.fillText("☠", px - 6, py + 5);
+    }
+    if (e.event === "Loot" && state.layers.loot) {
+      ctx.font = "12px Arial";
+      ctx.fillText("📦", px - 6, py + 5);
+    }
+    if (e.event === "KilledByStorm" && state.layers.storm) {
+      ctx.font = "13px Arial";
+      ctx.fillText("⚡", px - 6, py + 5);
+    }
+  }
+
+  document.getElementById("statusChip").textContent = `● ${state.visibleEvents.length} EVENTS`;
+}
+
+function buildEventTicks() {
+  const ticks = document.getElementById("eventTicks");
+  ticks.innerHTML = "";
+  const markers = state.filteredEvents.filter(e => !["Position", "BotPosition"].includes(e.event));
+  for (const e of markers) {
+    const t = document.createElement("div");
+    t.className = "event-tick";
+    t.style.left = `${((e.timeline_s - state.timeMin) / (state.timeMax - state.timeMin || 1)) * 100}%`;
+    t.style.background = eventColor(e.event);
+    ticks.appendChild(t);
+  }
+}
+
+function updateTimeline() {
+  const p = ((state.playhead - state.timeMin) / (state.timeMax - state.timeMin || 1));
+  document.getElementById("timelineFill").style.width = `${Math.max(0, Math.min(100, p * 100))}%`;
+  document.getElementById("timelineThumb").style.left = `${Math.max(0, Math.min(100, p * 100))}%`;
+  document.getElementById("timeDisplay").textContent = `T +${fmtSecs(Math.max(0, state.playhead - state.timeMin))}`;
+  document.getElementById("timeTotal").textContent = `/ ${fmtSecs(Math.max(0, state.timeMax - state.timeMin))}`;
+}
+
+function updateStats() {
+  const ev = state.filteredEvents;
+  const uniqueMatches = new Set(ev.map(e => e.match_id)).size;
+  const humanRows = ev.filter(e => !e.is_bot).length;
+  const botRows = ev.filter(e => e.is_bot).length;
+  const kills = ev.filter(e => e.event === "Kill" || e.event === "BotKill").length;
+  const loot = ev.filter(e => e.event === "Loot").length;
+  document.getElementById("statEvents").textContent = ev.length;
+  document.getElementById("statMatches").textContent = uniqueMatches;
+  document.getElementById("statPlayers").textContent = humanRows;
+  document.getElementById("statBots").textContent = botRows;
+  document.getElementById("statKills").textContent = kills;
+  document.getElementById("statLoot").textContent = loot;
+}
+
+function updateInsights() {
+  const ev = state.filteredEvents;
+  const byEvent = ev.reduce((a, e) => (a[e.event] = (a[e.event] || 0) + 1, a), {});
+  const panel = document.getElementById("insightPanel");
+  panel.innerHTML = [
+    `Total filtered events: <b style="color:#00e5ff">${ev.length}</b>`,
+    `Top event: <b style="color:#ffe000">${Object.entries(byEvent).sort((a,b)=>b[1]-a[1])[0]?.[0] || "N/A"}</b>`,
+    `Storm deaths: <b style="color:#7c4dff">${byEvent.KilledByStorm || 0}</b>`
+  ].map(t => `<div style="margin-bottom:8px;padding:8px;background:var(--bg);border:1px solid var(--border)">${t}</div>`).join("");
+}
+
+function updateBarChart() {
+  const ev = state.filteredEvents;
+  const rows = [
+    { label: "Positions", val: ev.filter(e => e.event === "Position" || e.event === "BotPosition").length, color: "#00e5ff" },
+    { label: "Loot", val: ev.filter(e => e.event === "Loot").length, color: "#ffe000" },
+    { label: "Kills", val: ev.filter(e => e.event === "Kill" || e.event === "BotKill").length, color: "#ff3a6e" },
+    { label: "Deaths", val: ev.filter(e => e.event === "Killed" || e.event === "BotKilled" || e.event === "KilledByStorm").length, color: "#ff9100" }
+  ];
+  const max = Math.max(1, ...rows.map(r => r.val));
+  const chart = document.getElementById("barChart");
+  chart.innerHTML = rows.map(r => `
+    <div style="display:flex;flex-direction:column;gap:2px;">
+      <div style="display:flex;justify-content:space-between;font-size:10px;">
+        <span style="color:${r.color}">${r.label}</span>
+        <span style="font-family:var(--font-mono);color:var(--text-dim)">${r.val}</span>
+      </div>
+      <div style="height:4px;background:var(--border-bright);border-radius:2px;">
+        <div style="height:100%;width:${(r.val / max) * 100}%;background:${r.color};border-radius:2px;"></div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function populateMatchFilter() {
+  const matchSel = document.getElementById("filterMatch");
+  const list = document.getElementById("matchList");
+  const matches = [...new Set(state.filteredEvents.map(e => e.match_id))].sort();
+  matchSel.innerHTML = `<option value="all">— All Matches —</option>${matches.map(m => `<option value="${m}">${m}</option>`).join("")}`;
+  list.innerHTML = matches.slice(0, 150).map(m => {
+    const group = state.filteredEvents.filter(e => e.match_id === m);
+    const kills = group.filter(e => e.event === "Kill" || e.event === "BotKill").length;
+    const loot = group.filter(e => e.event === "Loot").length;
+    return `<div class="match-item" onclick="pickMatch('${m}', this)">
+      <div class="match-id">${m}</div>
+      <div class="match-meta"><span style="color:var(--kill)">💀 ${kills}</span><span style="color:var(--loot)">📦 ${loot}</span><span style="color:var(--text-dim)">${group.length} events</span></div>
+    </div>`;
+  }).join("");
+}
+
+function pickMatch(matchId, el) {
+  document.querySelectorAll(".match-item").forEach(x => x.classList.remove("selected"));
+  el.classList.add("selected");
+  document.getElementById("filterMatch").value = matchId;
+  applyFilters();
+}
+
+async function loadMapImage(mapKey) {
+  const img = new Image();
+  img.src = MAPS[mapKey].minimap;
+  await img.decode();
+  state.mapImage = img;
+}
+
+async function loadCsvRows(path) {
+  const txt = await fetch(path).then(r => r.text());
+  const lines = txt.trim().split("\n");
+  const headers = lines[0].split(",");
+  return lines.slice(1).map(line => {
+    const cols = line.split(",");
+    const o = {};
+    headers.forEach((h, i) => o[h] = cols[i]);
+    return o;
+  });
+}
+
+async function loadParquetRows(path) {
+  const duckdb = await import("https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.29.0/+esm");
+  const bundles = duckdb.getJsDelivrBundles();
+  const bundle = await duckdb.selectBundle(bundles);
+  const workerUrl = URL.createObjectURL(new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" }));
+  const worker = new Worker(workerUrl);
+  const db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger(), worker);
+  await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+  URL.revokeObjectURL(workerUrl);
+  const conn = await db.connect();
+  const bytes = new Uint8Array(await fetch(path).then(r => r.arrayBuffer()));
+  await db.registerFileBuffer("player_journey.parquet", bytes);
+  const result = await conn.query("SELECT * FROM read_parquet('player_journey.parquet')");
+  const rows = result.toArray().map(r => ({ ...r }));
+  await conn.close();
+  await db.terminate();
+  return rows;
+}
+
+async function loadEvents() {
+  let rows = [];
+  try {
+    rows = await loadParquetRows(DATA_SOURCES.parquet);
+    toast("Loaded structured Parquet dataset (Feb 10-14)");
+  } catch (_parquetErr) {
+    rows = await loadCsvRows(DATA_SOURCES.csv);
+    toast("Parquet load failed, loaded CSV fallback");
+  }
+
+  state.rawEvents = rows.map(r => ({
+    ...r,
+    x: Number(r.x), y: Number(r.y), z: Number(r.z),
+    minimap_x: Number(r.minimap_x), minimap_y: Number(r.minimap_y),
+    is_bot: String(r.is_bot).toLowerCase() === "true",
+    timeline_s: Number(r.journey_time_s),
+    ts: new Date(r.ts).getTime()
+  })).filter(r => Number.isFinite(r.x) && Number.isFinite(r.z));
+
+  state.days = [...new Set(state.rawEvents.map(e => e.day))].sort();
+}
+
+function applyFilters() {
+  const mapFilter = state.currentMap;
+  const dayFilter = document.getElementById("filterDate").value || "all";
+  const matchFilter = document.getElementById("filterMatch").value || "all";
+  const playerFilter = document.getElementById("filterPlayerType").value || "all";
+
+  const baseFiltered = state.rawEvents.filter(e => {
+    if (e.map_id !== mapFilter) return false;
+    if (dayFilter !== "all" && e.day !== dayFilter) return false;
+    if (playerFilter === "human" && e.is_bot) return false;
+    if (playerFilter === "bot" && !e.is_bot) return false;
+    return true;
+  });
+
+  const allMatches = [...new Set(baseFiltered.map(e => e.match_id))].sort();
+  const matchSel = document.getElementById("filterMatch");
+  const selected = allMatches.includes(matchFilter) ? matchFilter : "all";
+  matchSel.innerHTML = `<option value="all">— All Matches —</option>${allMatches.map(m => `<option value="${m}">${m}</option>`).join("")}`;
+  matchSel.value = selected;
+
+  const list = document.getElementById("matchList");
+  list.innerHTML = allMatches.slice(0, 150).map(m => {
+    const group = baseFiltered.filter(e => e.match_id === m);
+    const kills = group.filter(e => e.event === "Kill" || e.event === "BotKill").length;
+    const loot = group.filter(e => e.event === "Loot").length;
+    return `<div class="match-item ${selected === m ? "selected" : ""}" onclick="pickMatch('${m}', this)">
+      <div class="match-id">${m}</div>
+      <div class="match-meta"><span style="color:var(--kill)">💀 ${kills}</span><span style="color:var(--loot)">📦 ${loot}</span><span style="color:var(--text-dim)">${group.length} events</span></div>
+    </div>`;
+  }).join("");
+
+  state.filteredEvents = baseFiltered
+    .filter(e => selected === "all" || e.match_id === selected)
+    .sort((a, b) => a.timeline_s - b.timeline_s);
+
+  state.timeMin = state.filteredEvents[0]?.timeline_s || 0;
+  state.timeMax = state.filteredEvents[state.filteredEvents.length - 1]?.timeline_s || 1;
+  state.playhead = state.timeMax;
+
+  buildEventTicks();
+  updateStats();
+  updateInsights();
+  updateBarChart();
+  updateTimeline();
+  redraw();
+}
+
+function selectMap(mapKey, el) {
+  document.querySelectorAll(".map-tab").forEach(t => t.classList.remove("active"));
+  if (el) el.classList.add("active");
+  state.currentMap = mapKey;
+  state.playing = false;
+  document.getElementById("btnPlay").textContent = "▶";
+  document.getElementById("btnPlay").classList.remove("active");
+  document.getElementById("mapLabelOverlay").textContent = `${MAPS[mapKey].label} · FEB 10-14`;
+  loadMapImage(mapKey).then(() => {
+    applyFilters();
+    updateMapCounts();
+  });
+}
+
+function updateMapCounts() {
+  for (const tab of document.querySelectorAll(".map-tab")) {
+    const mapKey = tab.dataset.map;
+    const matches = new Set(state.rawEvents.filter(e => e.map_id === mapKey).map(e => e.match_id)).size;
+    const count = tab.querySelector(".map-count");
+    if (count) count.textContent = `${matches} matches`;
+  }
+}
+
+function toggleLayer(name) {
+  state.layers[name] = !state.layers[name];
+  document.getElementById(`toggle-${name}`).classList.toggle("on", state.layers[name]);
+  redraw();
+}
+
+function toggleHeatmap(name, btn) {
+  state.heatmaps[name] = !state.heatmaps[name];
+  btn.classList.toggle("active", state.heatmaps[name]);
+  btn.querySelector(".check").textContent = state.heatmaps[name] ? "✓" : "";
+  redraw();
+}
+
+function updateOpacity(val) {
+  state.opacity = Number(val) / 100;
+  document.getElementById("opacityVal").textContent = `${val}%`;
+  redraw();
+}
+
+function updateHeatIntensity(val) {
+  state.heatIntensity = Number(val) / 100;
+  document.getElementById("heatIntVal").textContent = `${val}%`;
+  redraw();
+}
+
+function seekTimeline(ev) {
+  const rect = document.getElementById("timelineTrack").getBoundingClientRect();
+  const p = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+  state.playhead = state.timeMin + p * (state.timeMax - state.timeMin);
+  updateTimeline();
+  redraw();
+}
+
+function togglePlay() {
+  state.playing = !state.playing;
+  const btn = document.getElementById("btnPlay");
+  btn.textContent = state.playing ? "⏸" : "▶";
+  btn.classList.toggle("active", state.playing);
+  if (state.playing) {
+    if (state.playhead >= state.timeMax) state.playhead = state.timeMin;
+    state.lastTimestamp = null;
+    requestAnimationFrame(animatePlayhead);
+  }
+}
+
+function animatePlayhead(ts) {
+  if (!state.playing) return;
+  if (state.lastTimestamp === null) state.lastTimestamp = ts;
+  const delta = (ts - state.lastTimestamp) / 1000;
+  state.lastTimestamp = ts;
+  state.playhead = Math.min(state.timeMax, state.playhead + delta * state.playSpeed * 10);
+  updateTimeline();
+  redraw();
+  if (state.playhead >= state.timeMax) {
+    state.playing = false;
+    document.getElementById("btnPlay").textContent = "▶";
+    document.getElementById("btnPlay").classList.remove("active");
+    toast("Playback complete");
+    return;
+  }
+  requestAnimationFrame(animatePlayhead);
+}
+
+function skipStart() { state.playhead = state.timeMin; updateTimeline(); redraw(); }
+function skipEnd() { state.playhead = state.timeMax; updateTimeline(); redraw(); }
+
+function setSpeed(s, btn) {
+  state.playSpeed = s;
+  document.querySelectorAll(".speed-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+}
+
+canvas.addEventListener("mousemove", (e) => {
+  const rect = canvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (canvas.width / rect.width);
+  const py = (e.clientY - rect.top) * (canvas.height / rect.height);
+  const w = canvasToWorld(px, py, MAPS[state.currentMap]);
+  document.getElementById("coordDisplay").textContent = `CURSOR: X ${w.x}, Z ${w.z}`;
+
+  let nearest = null;
+  let best = 14;
+  for (const ev of state.visibleEvents) {
+    const p = mapToPixel(ev, MAPS[state.currentMap]);
+    const d = Math.hypot(p.px - px, p.py - py);
+    if (d < best) { best = d; nearest = ev; }
+  }
+  if (!nearest) return hideTooltip();
+  document.getElementById("tt-type").textContent = nearest.event;
+  document.getElementById("tt-type").style.color = eventColor(nearest.event);
+  document.getElementById("tt-row1").textContent = `Player: ${nearest.user_id} ${nearest.is_bot ? "(BOT)" : "(HUMAN)"}`;
+  document.getElementById("tt-row2").textContent = `Match: ${nearest.match_id.slice(0, 12)}...`;
+  const tip = document.getElementById("tooltip");
+  tip.style.display = "block";
+  tip.style.left = `${e.clientX + 12}px`;
+  tip.style.top = `${e.clientY - 30}px`;
+});
+canvas.addEventListener("mouseleave", hideTooltip);
+function hideTooltip() { document.getElementById("tooltip").style.display = "none"; }
+
+let toastTimeout;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => el.classList.remove("show"), 2500);
+}
+
+async function init() {
+  document.getElementById("hm-kills").classList.add("active");
+  document.getElementById("hm-kills").querySelector(".check").textContent = "✓";
+  await loadEvents();
+  document.getElementById("filterDate").innerHTML =
+    `<option value="all">All dates</option>${state.days.map(d => `<option value="${d}">${d}</option>`).join("")}`;
+  await loadMapImage(state.currentMap);
+  resizeCanvasToContainer();
+  window.addEventListener("resize", () => { resizeCanvasToContainer(); redraw(); });
+  updateMapCounts();
+  applyFilters();
+  document.querySelector(".status-bar .status-chip:nth-child(1)").textContent =
+    `▸ ${new Set(state.rawEvents.map(e => e.match_id)).size} MATCHES LOADED`;
+  toast("LILA BLACK visualization ready with Feb 10-14 data");
+}
+
+document.getElementById("filterDate").addEventListener("change", applyFilters);
+document.getElementById("filterMatch").addEventListener("change", applyFilters);
+document.getElementById("filterPlayerType").addEventListener("change", applyFilters);
+
+init().catch(err => {
+  console.error(err);
+  toast("Load error. Serve this file via local server (not file://).");
+});
+</script>
+</body>
+</html>
+
